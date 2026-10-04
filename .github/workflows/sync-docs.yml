@@ -1,0 +1,77 @@
+name: Sync Docs from Introduction-To-Computers
+
+on:
+  schedule:
+    # 定时触发：UTC 时间每天 20:00（即北京时间每天凌晨 04:00）
+    # 可按需修改，如 '0 */6 * * *' 表示每 6 小时同步一次
+    - cron: '0 20 * * *'
+  # 支持在 GitHub Actions 页面手动点击 "Run workflow" 随时触发
+  workflow_dispatch:
+
+# 赋予该工作流向本仓库推送代码的权限
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出目标仓库 (Vite-ITC)
+      - name: Checkout Vite-ITC
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 2. 检出源仓库到临时目录 temp-source
+      - name: Checkout Source Repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'Moling-Teru/Introduction-To-Computers'
+          path: 'temp-source'
+          fetch-depth: 1
+          # 如果源仓库是私有仓库 (Private)，请将下行注释解开并配置 Secret：
+          # token: ${{ secrets.SYNC_PAT }}
+
+      # 3. 精准同步指定文件夹和文件
+      - name: Copy specific files and directories
+        run: |
+          # 1) 同步文件夹（--delete 会清理目标文件夹中源仓库已删除的旧文件，且只作用于指定目录）
+          if [ -d "temp-source/教程" ]; then
+            mkdir -p "教程"
+            rsync -av --delete "temp-source/教程/" "教程/"
+          fi
+
+          if [ -d "temp-source/图片" ]; then
+            mkdir -p "图片"
+            rsync -av --delete "temp-source/图片/" "图片/"
+          fi
+
+          # 2) 覆盖同步指定文件（如果源仓库存在则复制）
+          for file in "101.md" "README.md" "总览.md" "标准格式试行.md"; do
+            if [ -f "temp-source/$file" ]; then
+              cp -f "temp-source/$file" "./$file"
+            fi
+          done
+
+          # 3) 清理临时源仓库目录
+          rm -rf temp-source
+
+      # 4. 提交并推送到 Vite-ITC
+      - name: Commit and Push
+        run: |
+          # 避免中文文件名在 git 中被转义成数字乱码
+          git config --global core.quotepath false
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 仅暂存指定的文件与目录，保证不触碰任何其他文件
+          git add 教程 图片 101.md README.md 总览.md 标准格式试行.md
+
+          # 检查是否有内容变动
+          if git diff --staged --quiet; then
+            echo "没有检测到任何内容变更，无需提交。"
+          else
+            git commit -m "chore(sync): 同步来自 Introduction-To-Computers 的最新教程与资源"
+            git push
+          fi
