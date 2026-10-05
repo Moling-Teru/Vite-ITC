@@ -48,7 +48,7 @@ jobs:
           fi
 
           # 2) 覆盖同步指定文件（如果源仓库存在则复制）
-          for file in "101.md" "README.md" "总览.md" "标准格式试行.md"; do
+          for file in "101.md" "总览.md" "标准格式试行.md"; do
             if [ -f "temp-source/$file" ]; then
               cp -f "temp-source/$file" "./$file"
             fi
@@ -66,7 +66,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # 仅暂存指定的文件与目录，保证不触碰任何其他文件
-          git add 教程 图片 101.md README.md 总览.md 标准格式试行.md
+          git add 教程 图片 101.md 总览.md 标准格式试行.md
 
           # 检查是否有内容变动
           if git diff --staged --quiet; then
